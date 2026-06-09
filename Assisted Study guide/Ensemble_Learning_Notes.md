@@ -3,7 +3,7 @@
 **Course:** CPSC 483-02, Introduction to Machine Learning (Summer 2026)
 **Instructor:** Dr. Anand Panangadan
 **Textbook ref:** Géron, *Hands-On Machine Learning* — Ensemble Learning & Random Forests chapter
-**Deck:** `ML_Ensemble_Learning.pdf` (43 slides) · notebook `06/07_ensemble_learning_and_random_forests.ipynb`
+**Deck:** `ML_Ensemble_Learning.pdf` (43 slides) · notebook `06_ensemble_learning_and_random_forests.ipynb` (`handson-mlp` repo)
 **Cross-check status:** ✅ Clean — no computational errors found (details in the cross-check log at the end)
 
 ---
@@ -211,15 +211,23 @@ y_pred_rf = rnd_clf.predict(X_test)
 - `RandomForestClassifier(n_estimators=100)` to classify **Cylinders** from the other features.
 - **Drop the last column (car/model name)** — it's a high-cardinality text identifier, useless as a feature.
 - Visualize one of the trees.
-*Reminders for you:* watch the Canvas version of `autompg.csv` for column/row differences vs. the standard file; you'll likely need to handle the non-numeric `horsepower` entries (`'?'`) before fitting. To visualize, pull one estimator with `rnd_clf.estimators_[0]` and use `plot_tree`. **(Your turn.)**
+> 🔴 **Slide 25 corrections (confirmed in class).** Two things on this slide turned out differently than the slide text implies:
+> 1. **"Visualize the decision tree" was struck out by the instructor in lecture** — and rightly so. A random forest's prediction is a *majority vote across all 100 trees*; no single tree is the model, and each is deliberately made unrepresentative (bootstrap rows + random per-node feature subsets + full depth). Plotting one tree shows one resampled slice's quirks, not the forest's reasoning — exactly the slide-29 black-box property. **The forest-native replacement is `feature_importances_` (slide 27) plus an honest per-class evaluation.**
+> 2. **Canvas `autompg.csv` profile (pinned down from the real file):** comma-delimited, quoted fields; last column is **`car_name`**; **`origin` is already numeric (1/2/3)** — *no encoding needed*; `horsepower` carries **6 `NaN`s**, stored as real NaN (**not** `'?'` strings, so no string-coercion step). Drop the name column + `dropna()` and the 7 features are model-ready.
+>
+> *Result on the real file:* 392 samples × 7 features; with an 80/20 stratified split, test accuracy ≈ **0.975**, OOB ≈ **0.965** (the slide-15 free-validation cross-check agreeing with the held-out number). The class is wildly imbalanced (4-cyl: 199, 8-cyl: 103, 6-cyl: 83, but 3-cyl: 4 and 5-cyl: 3), so **macro-F1 ≈ 0.59 vs weighted-F1 ≈ 0.97** — excellent on common classes, blind on the rare ones. Report per-class metrics, not bare accuracy. **(Your turn — see the delivered notebook for the worked version.)**
 
 ### Slide 26 · Textbook code
-Open `06/07_ensemble_learning_and_random_forests.ipynb` (Géron) on Colab as the canonical style reference. *(See cross-check log re: the notebook number.)*
+Open `06_ensemble_learning_and_random_forests.ipynb` (Géron) on Colab as the canonical style reference. **Confirmed correct:** in the `handson-mlp` repo (the Scikit-Learn & PyTorch edition your course uses), ensemble learning genuinely is notebook **06**. *(My earlier "06 vs 07" flag was a false alarm — I'd checked the older `handson-ml3`/Keras repo, where it's 07. Standing lesson: cross-check notebook references against **`handson-mlp`**, not `ml3`.)* Géron's idioms from this notebook: forest named **`rnd_clf`**, instantiated with **`n_jobs=-1, random_state=42`**; feature importance via `for score, name in zip(rnd_clf.feature_importances_, columns): print(round(score, 2), name)`.
 
 ### Slide 27 · Feature importance (a free side-benefit)
 A random forest gives you a **relative importance score per feature**: how much the nodes that split on that feature **reduce impurity (Gini/MSE)**, **averaged across all trees**, **weighted** by the number of training samples reaching each node.
 
-**Why you get this for free:** you're already measuring impurity reduction at every split to *grow* the trees — feature importance just totals those reductions per feature. It's a cheap, built-in form of **dimensionality reduction / feature ranking** (slide 29 lists it as an advantage). Caveat to remember: impurity-based importance is biased toward high-cardinality / continuous features.
+**Why you get this for free:** you're already measuring impurity reduction at every split to *grow* the trees — feature importance just totals those reductions per feature. It's a cheap, built-in form of **dimensionality reduction / feature ranking** (slide 29 lists it as an advantage).
+
+> ⚠️ **Two caveats — flagged as OUTSIDE the deck (general ML / sklearn knowledge, not examinable from these slides):**
+> - Impurity-based importance is **biased toward high-cardinality / continuous features.**
+> - **One-hot encoding *fragments* a feature's importance across its dummy columns.** On auto-mpg, encoding `origin` splits its single ~0.037 importance into `origin_1` ≈ 0.023, `origin_2` ≈ 0.010, `origin_3` ≈ 0.004 — same total, harder to read. This connects to the **slide-22 failure mode** (many sparse columns, each rarely chosen under per-node feature subsampling), which is why one-hot can *hurt* tree ensembles on high-cardinality categoricals. The slide-22 link is fair; the fragmentation claim itself is mine — verify independently, don't assume it's exam material.
 
 ### Slide 28 · Extremely Randomized Trees (Extra-Trees)
 Add **even more randomness**: instead of *searching* for the best split point on each candidate feature, **pick the split point at random** too, then keep the best among those random splits.
@@ -364,7 +372,7 @@ Cover the notes and answer aloud before peeking:
 |---|---|---|---|
 | 1 | 11 | Generate 3 bootstrap samples (`random.choices`) | ⬜ your turn |
 | 2 | 16 | Same + identify OOB samples (`set` difference) | ⬜ your turn |
-| 3 | 25 | `RandomForestClassifier(100)` on `autompg.csv` → predict Cylinders, drop name col, visualize a tree | ⬜ your turn |
+| 3 | 25 | `RandomForestClassifier(100)` on `autompg.csv` → predict Cylinders, drop name col. ~~Visualize a tree~~ (struck by instructor) → **feature importances + per-class report** instead | ✅ done & verified (notebook delivered) |
 | 4 | 40 | AdaBoost on Iris (4 features, 80/20), sweep learning rate | ⬜ your turn |
 
 When you've taken a pass at these, send me your code/answers and I'll check them against the instructor's idioms and flag anything off.
@@ -384,22 +392,71 @@ When you've taken a pass at these, send me your code/answers and I'll check them
 - ⚠️ **Soft voting needs `predict_proba`.** The slide-6 example uses default hard voting; switching to soft requires `SVC(probability=True)`. (See slide-5 note.)
 - ⚠️ **Stacking blender training.** Slide 42 doesn't mention that the blender must see out-of-sample base predictions to avoid overfitting — important for the classwork/notebook. (See slide-42 note.)
 
-**Minor metadata flags (verify, low stakes):**
-- 📌 **Notebook number (slide 26).** The slide names `06_ensemble_learning_and_random_forests.ipynb`. In the standard Géron `handson-ml3` GitHub repo this content is notebook **07** (06 is Decision Trees). Your course may use its own numbering — just confirm you open the ensemble notebook, whatever its prefix.
-- 📌 **Edition citation (slide 43).** The deck cites the 3rd edition (Keras/TensorFlow, 2022); your course textbook is the Scikit-Learn & PyTorch edition. The ensemble chapter is scikit-learn-based and essentially identical across editions, so no content impact.
+**Minor metadata flags:**
+- ✅ **Notebook number (slide 26) — RESOLVED in slides' favor.** Slide names `06_ensemble_learning_and_random_forests.ipynb`. My earlier flag claimed it should be 07 — but that was checking `handson-ml3` (Keras/TF repo). Your course uses **`handson-mlp`** (Scikit-Learn & PyTorch edition), where ensemble learning *is* notebook **06**. Slide was correct. Lesson logged: check `handson-mlp`, not `ml3`.
+- 📌 **Edition citation (slide 43).** The deck cites the 3rd edition (Keras/TensorFlow, 2022); your course textbook is the Scikit-Learn & PyTorch edition (Oct 2025). The ensemble chapter is scikit-learn-based and essentially identical across editions, so no content impact. *(Note: the Data Preprocessing deck slide 67 cites the correct 2025 PyTorch edition — so the edition citation is inconsistent across decks, not uniformly wrong.)*
 - 📌 **Day label.** You called this "Day 6," but our notes have Decision Trees as Day 6 — this looks like the **Day 7** session. Adjust the header to match your repo's numbering if needed.
 
 ---
 
-## 🛠️ Proposed `skills.md` additions (for session close)
+## 🔗 Source-traceability map (built after reading the full Data Preprocessing deck)
 
-You didn't re-upload `skills.md` this session, so I haven't patched it. When you upload it (or at close), here are the entries I'd append:
+The Random Forest classwork (slide 25) pulls preprocessing tools that live in the **Data Preprocessing deck**, not the Ensemble deck. For the AI-free final, here's exactly what is citable to *your* materials versus what is outside knowledge.
 
-- **Ensemble bias–variance map:** Bagging/RF/Extra-Trees → reduce **variance** (parallel, independent, high-variance members). Boosting → reduces **bias** (sequential, dependent, weak members). Use this table to answer "which family" questions instantly.
-- **OOB derivation is fair game:** $(1-1/n)^n \to e^{-1} \approx 0.368$; in-bag ≈ 63%. Be able to derive, not just recite.
-- **Random forest = TWO randomness sources:** bootstrap rows **+** per-node random feature subset (re-drawn every node). Don't confuse with random subspaces (features once per tree).
-- **sklearn default trap:** `RandomForestRegressor` uses all features by default, *not* $N/3$ — distinguish library default from Breiman's rule of thumb.
-- **AdaBoost math to memorize:** $\alpha_j=\eta\log\frac{1-r_j}{r_j}$ (negative if worse-than-random); misclassified weights ×$e^{\alpha_j}$ then renormalize; prediction is **weighted** majority.
+**Traceable to YOUR slides (safe to use and cite):**
+
+| Tool / concept | Your source | Notes |
+|---|---|---|
+| `train_test_split(test_size=0.2)` | Preprocessing **slide 41** | random sampling |
+| `stratify=` | Preprocessing **slide 42** | keeps class proportions — directly relevant to the imbalanced cylinders target |
+| Drop rows / drop column / impute (the 3 missing-data options) | Preprocessing **slides 50–51** | `dropna`, `drop(axis=1)`, `SimpleImputer(strategy="median")` all shown |
+| `OrdinalEncoder` (integer encoding) | Preprocessing **slide 53** | = what your already-numeric `origin` effectively is |
+| `OneHotEncoder(handle_unknown="ignore")` | Preprocessing **slide 54** | "one column per value → sparse matrix" |
+| `Pipeline` + `ColumnTransformer` | Preprocessing **slides 64–65** | the exact `make_pipeline(SimpleImputer…, OneHotEncoder…)` idiom |
+| The peer's whole approach | Preprocessing **slide 66 classwork** | "20% test, median impute, one-hot, ratios, standardize, ideally one pipeline" |
+| `MinMaxScaler` / `StandardScaler` | Preprocessing **slides 57–61** | scaling (not needed for trees — see below) |
+| Feature importance | Ensemble **slide 27** | impurity reduction averaged across trees |
+| "Many features, few relevant → weak trees" | Ensemble **slide 22** | the one-hot-on-high-cardinality risk links here |
+| OOB = free validation | Ensemble **slide 15** | OOB accuracy cross-checks the test split |
+| Black-box / can't-trace-logic | Ensemble **slide 29** | *why* the tree-viz was struck |
+| Pearson "linear only" | Preprocessing **slide 44** | matches your existing Pearson-vs-Spearman note |
+
+**NOT in your slides (general ML / sklearn — verify independently, don't assume examinable):**
+- "Trees don't need feature scaling." Your deck teaches scaling for *most* algorithms (slides 56–61) but never states the tree exception. Comes from CART threshold-split mechanics + general knowledge.
+- "One-hot *fragments* importance across dummy columns" (the origin 0.023/0.010/0.004 split). Demonstrated on your data; not stated in any slide.
+- "One-hot can *hurt* tree ensembles on high-cardinality categoricals." The slide-22 link is a fair bridge, but the claim is general knowledge (Géron ch. 2 / sklearn docs).
+- "0.988 vs 0.975 is just noise." Purely empirical, computed on your file.
+
+> 🔴 **NEW slide error found while reading the full Preprocessing deck — slide 36 terminology.** The slide states "Numerical … Also called Ordinal variables" and "Categorical … Also called Nominal variables." This conflates two different axes. Standard taxonomy: **ordinal is a *subtype of categorical*** (ordered categories: Freshman < Junior < Senior), distinct from **numerical/continuous**. The slide's own **slide-55 classwork** treats `Standing` (Freshman/Junior/Senior) as categorical-for-encoding — and `OrdinalEncoder` (slide 53) exists precisely to encode *ordered categoricals*, which makes no sense under the slide-36 labeling. Flag inline: numerical ≠ ordinal; ordinal ⊂ categorical. **(Confirm against the textbook's variable-types section.)**
+
+---
+
+## 🛠️ Consolidated `skills.md` patch (for session close)
+
+`skills.md` wasn't re-uploaded this session, so this isn't applied yet — upload it and I'll merge. Grouped by section for a clean patch.
+
+**Ensemble learning (Day 7 content):**
+- **Bias–variance map:** Bagging/RF/Extra-Trees → reduce **variance** (parallel, independent, high-variance members). Boosting → reduces **bias** (sequential, dependent, weak members). The "which family" answer key.
+- **OOB derivation is fair game:** $(1-1/n)^n \to e^{-1} \approx 0.368$; in-bag ≈ 63%. Derive, don't just recite. OOB accuracy cross-checks the held-out test number.
+- **Random forest = TWO randomness sources:** bootstrap rows **+** per-node random feature subset (re-drawn every node, *not* once per tree → that's random subspaces).
+- **sklearn default trap:** `RandomForestRegressor` defaults to *all* features, **not** $N/3$. Classifier default is `'sqrt'` = $\sqrt N$ (matches slide 23). Distinguish library default from Breiman's rule.
+- **AdaBoost math:** $\alpha_j=\eta\log\frac{1-r_j}{r_j}$ (negative if worse-than-random); misclassified weights ×$e^{\alpha_j}$ then renormalize; prediction is **weighted** majority.
 - **Boosting learning-rate trade-off:** smaller `learning_rate` ⇒ need more `n_estimators`.
-- **Stacking blender hygiene:** train the blender on out-of-fold / held-out base predictions or it overfits.
-- **Standing principle reaffirmed:** this deck cross-checked clean — document the *clean* result too, not only errors, so the running error log stays trustworthy.
+- **Stacking blender hygiene:** train on out-of-fold / held-out base predictions or it overfits.
+
+**Preprocessing cross-references (so future classwork doesn't re-derive these):**
+- **Preprocessing tool → slide index:** split 41 · stratify 42 · missing-data 3 options 50–51 · OrdinalEncoder 53 · OneHotEncoder 54 · Pipeline+ColumnTransformer 64–65 · scaling 57–61 · full-pipeline classwork 66.
+- **For tree models specifically:** scaling is unnecessary; one-hot is *optional* and can fragment importances / hurt on high-cardinality (slide-22 risk). Integer/ordinal `origin` is fine as-is for a forest.
+
+**Canvas dataset schema (pinned):**
+- **`autompg.csv`:** comma-delimited, quoted fields; columns `mpg, cylinders, displacement, horsepower, weight, acceleration, model_year, origin, car_name`; `origin` **numeric (1/2/3)**; `horsepower` has **6 real `NaN`s** (not `'?'` strings); last column `car_name`. After drop+dropna: **392×7**, classes {3,4,5,6,8}, heavily imbalanced.
+
+**Reference-repo & idiom notes:**
+- **Textbook repo is `handson-mlp`** (Scikit-Learn & PyTorch, Oct 2025), *not* `handson-ml3` (Keras/TF). Ensemble notebook = **06** there. Always cross-check notebook numbers against `handson-mlp`.
+- **Géron forest idioms:** `rnd_clf` naming, `n_jobs=-1`, `random_state=42`; feature-importance print loop `for score, name in zip(rnd_clf.feature_importances_, cols): print(round(score,2), name)`.
+
+**Slide error log (append):**
+- Ensemble deck: **clean** (AdaBoost eqns, OOB 37%, biased-coin 25%, $m$ rules all verified). Notebook-06 flag resolved in slides' favor.
+- Preprocessing deck **slide 36**: numerical ≠ ordinal; ordinal is a subtype of categorical. Contradicts slides 53/55. *(confirm vs textbook)*
+
+**Standing principle reaffirmed:** document *clean* cross-check results too, not only errors, so the running log stays trustworthy. And: separate "in your slides" from "general knowledge I added" explicitly — matters for the AI-free final.
